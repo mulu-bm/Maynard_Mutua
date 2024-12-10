@@ -44,19 +44,19 @@ series = requests.get('http://api.cal-adapt.org/api/series/')
 
 #%%
 user_input_model = arcpy.GetParameterAsText(0)
-user_input_model = 'average simulation'
+#user_input_model = 'average simulation'
 
 if user_input_model == 'average simulation':
     slug_model = 'CanESM2'
 elif user_input_model == 'warmer/drier simulation':
-    slug_model = 'HadGEM2'
+    slug_model = 'HadGEM2-ES'
 elif user_input_model == 'cooler/wetter simulation':
     slug_model = 'CNRM-CM5'
 elif user_input_model == 'dissimilar simulation':
     slug_model = 'MIROC5'
 
 user_input_scenario = arcpy.GetParameterAsText(1)
-user_input_scenario = 'medium emissions scenario'
+#user_input_scenario = 'medium emissions scenario'
 
 if user_input_scenario == 'medium emissions scenario':
     slug_scenario = 'rcp45'
@@ -110,7 +110,7 @@ data_list
 
 #%%
 user_input_time = arcpy.GetParameterAsText(2)
-user_input_time = '2040-2049'
+#user_input_time = '2040-2049'
 
 #user_input_time = '2060-2069'
 if user_input_time == '1960-1969':
@@ -155,25 +155,30 @@ outFileName = (scratch_folder/f'{slug}_{user_input_time}.tif')
 outFileName
 
 #%%
+ 
 ds = gdal.Open(test['image'])
 print(f'ds is a {type(ds)} object')
 band = ds.GetRasterBand(1)
 arr = band.ReadAsArray()
 
+arr_mask_val = np.nanquantile(arr, [ .50]) 
+arr_mask = np.where(arr > arr_mask_val, 1, np.nan) #replace 1 with 'arr' if you want to replace with actual value
+
 [cols, rows] = arr.shape
 
 driver = gdal.GetDriverByName("GTiff")
 
-#%%
-outdata = driver.Create(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}.tif', rows, cols, 1, gdal.GDT_Float32)
+outdata = driver.Create(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
 outdata.SetGeoTransform(ds.GetGeoTransform()) #set same geotransform as input
 outdata.SetProjection(ds.GetProjection()) #set the same projection as input
-outdata.GetRasterBand(1).WriteArray(arr)
+outdata.GetRasterBand(1).WriteArray(arr_mask)
 outdata.FlushCache() #saves to disk
 
 outdata = None
 band=None
 ds=None
+
+#print(f'arr_1 is a {type(arr_1)} object')
 
 
 # %%
