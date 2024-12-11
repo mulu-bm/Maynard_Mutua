@@ -24,8 +24,8 @@ root_folder = Path.cwd().parent
 data_folder = root_folder / 'Data'
 scratch_folder = root_folder / 'Scratch'
 scripts_folder = root_folder / 'Scripts'
-print(root_folder)
-print(scratch_folder)
+#print(root_folder)
+#print(scratch_folder)
 
 
 #Set workspace
