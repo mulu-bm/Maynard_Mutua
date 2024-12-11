@@ -43,8 +43,8 @@ series = requests.get('http://api.cal-adapt.org/api/series/')
 
 
 #%%
-user_input_model = arcpy.GetParameterAsText(0)
-#user_input_model = 'average simulation'
+#user_input_model = arcpy.GetParameterAsText(0)
+user_input_model = 'average simulation'
 
 if user_input_model == 'average simulation':
     slug_model = 'CanESM2'
@@ -55,8 +55,8 @@ elif user_input_model == 'cooler/wetter simulation':
 elif user_input_model == 'dissimilar simulation':
     slug_model = 'MIROC5'
 
-user_input_scenario = arcpy.GetParameterAsText(1)
-#user_input_scenario = 'medium emissions scenario'
+#user_input_scenario = arcpy.GetParameterAsText(1)
+user_input_scenario = 'medium emissions scenario'
 
 if user_input_scenario == 'medium emissions scenario':
     slug_scenario = 'rcp45'
@@ -109,8 +109,8 @@ data_list = json['results'][0]['rasters'] #select bau, just yearly data
 data_list
 
 #%%
-user_input_time = arcpy.GetParameterAsText(2)
-#user_input_time = '2040-2049'
+#user_input_time = arcpy.GetParameterAsText(2)
+user_input_time = '2040-2049'
 
 #user_input_time = '2060-2069'
 if user_input_time == '1960-1969':
@@ -180,5 +180,18 @@ ds=None
 
 #print(f'arr_1 is a {type(arr_1)} object')
 
+
+#%%
+from arcpy.sa import *
+
+# %%
+
+outInt = Int(arcpy.Raster(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif'))
+outInt.save(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif')
+
+
+#%%
+
+arcpy.conversion.RasterToPolygon(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif', f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp')
 
 # %%
