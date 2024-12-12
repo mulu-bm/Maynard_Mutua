@@ -239,7 +239,7 @@ def flood_input(flood_scenario):
         arcpy.management.Merge([floodrisk_100_year_FEMA, 
                                 floodrisk_100_year_Regional, 
                                 floodrisk_100_year_DWR,
-                                floodrisk_100_year_USACE],combined100YearFlood, '', addSourceInfo)
+                                floodrisk_100_year_USACE],combined100YearFlood, fieldMappings, addSourceInfo)
 
         # Display any messages, warnings or errors
         print(arcpy.GetMessages())
@@ -284,7 +284,7 @@ def flood_input(flood_scenario):
         combined500YearFlood = str(scratch_folder / 'combined500YearFlood') 
         arcpy.management.Merge([floodrisk_500_year_FEMA, 
                                 floodrisk_500_year_Regional,
-                                floodrisk_500_year_USACE],combined500YearFlood, '', addSourceInfo)
+                                floodrisk_500_year_USACE],combined500YearFlood, fieldMappings, addSourceInfo)
         #return output file name for use in intersection
         return combined500YearFlood
     
@@ -328,7 +328,7 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
     print(item_list)
 
     #create list of rasters to combine
-    rastersToCombine = []
+    polygonsToCombine = []
     #for loop to create tif files from rasters for each item in the list
     for item in item_list:
         dataset = gdal.Open(item['image'], gdal.GA_ReadOnly)
@@ -336,26 +336,41 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
         #name with slug
         filename = item['slug']
         print(filename)
-        output_file = f'{filename}.tif'  # Defining output filename
-        #append to list
-        rastersToCombine.append(output_file)
+        output_file_raster = f'{filename}.tif'  # Defining output filename for raster
+        rasterFilePath = str(scratch_folder / output_file_raster) # Defining output file path for raster
         driver = gdal.GetDriverByName("GTiff")  # Specifying format to create copy
-        driver.CreateCopy(output_file, dataset,0,['COMPRESS=DEFLATE'])
+        driver.CreateCopy(rasterFilePath, dataset,0,['COMPRESS=DEFLATE'])
 
         # Close the datasets
         dataset = None
+        # Creating a polygon for each raster
+        import arcpy
+        arcpy.env.workspace = str(scratch_folder)
 
-    rastersToCombine
+        # Creating intermediate raster
+        intermediate_file_raster_path = str(scratch_folder / f'{filename}_intermediate.tif')
+        # Using the Raster Calculator to assign the new value to all cells
+        intermediate_file_raster = arcpy.sa.Con(arcpy.ia.Raster(str(rasterFilePath)) > 0, 1)
+        intermediate_file_raster.save(intermediate_file_raster_path)
+        output_file_polygon = f'{filename}.shp'  # Defining output filename for polygon
+        polygonFilePath = str(scratch_folder / output_file_polygon) # Defining output file path for polygon
+        polygonsToCombine.append(output_file_polygon)
+        arcpy.conversion.RasterToPolygon(intermediate_file_raster, polygonFilePath, 'NO_SIMPLIFY', 'VALUE')
 
-    #create combined raster file name
-    combinedRasterFilename = f'{period}+{scenario}.tif'
+    polygonsToCombine
 
-    ## Mosaic the TIFF images from the different locations to a new TIFF image
-    arcpy.MosaicToNewRaster_management(rastersToCombine, str(scratch_folder),\
-                                    combinedRasterFilename, '', '', '', '1','LAST','FIRST')
-    
+    #create combined polygon file name
+    combinedPolygonFileName = f'{user_input_flood_time}+{user_input_flood_scenario}.tif'
+
+    # Use Merge tool to move features into single dataset
+    combinedSeaLevelRise = str(scratch_folder / combinedPolygonFileName) 
+    arcpy.management.Merge(polygonsToCombine,combinedSeaLevelRise, '', 'ADD_SOURCE_INFO')
+        
      #return output file name for use in intersection
-    return str(scratch_folder/combinedRasterFilename)
+    return str(scratch_folder/combinedPolygonFileName)
+
+    # Display any messages, warnings or errors
+    print(arcpy.GetMessages())
 
 
 
