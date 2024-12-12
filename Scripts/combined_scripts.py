@@ -148,7 +148,7 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
 
     #create mask based on quantile value
     #quantile value chosen as method for mask so reative risk can be studied
-    arr_mask_val = np.nanquantile(arr, [ .50]) 
+    arr_mask_val = np.nanquantile(arr, [.75]) 
     arr_mask = np.where(arr > arr_mask_val, 1, np.nan) #replace 1 with 'arr' if you want to replace with actual value
 
     #shape of output file
@@ -391,27 +391,32 @@ infastructure_type_input = arcpy.GetParameterAsText(7) #options: power plants, t
 #this was done as a function so data and operations were only called when needed
 
 def user_input(weather_type_input, infastructure_type_input):
+    
     model = arcpy.GetParameterAsText(1)
     scenario = arcpy.GetParameterAsText(2)
     time_fire = arcpy.GetParameterAsText(3)
     flood_scenario = arcpy.GetParameterAsText(4)
     sea_level_scenario = arcpy.GetParameterAsText(5)
     sea_level_time = arcpy.GetParameterAsText(6)
-
     
-#Add error messages to guide user on selecting only variables that correspond to the extreme weather type
+    '''
+    flood_scenario = '200 year'
+    model = 'average simulation'
+    scenario = 'medium emissions scenario'
+    time_fire = '1980-1989'
+    sea_level_scenario = 'min'
+    sea_level_time = '2080-2100'
+    '''
+    #Add error messages to guide user on selecting only variables that correspond to the extreme weather type
     if weather_type_input == 'fire probability':
         if flood_scenario != '' or sea_level_scenario != '' or sea_level_time != '':
             arcpy.AddError('Please select variables only corresponding to fire probability scenario')
-            print('Please select only one extreme weather')
     elif weather_type_input == 'flood plane':
         if model != '' or scenario != '' or time_fire != '' or sea_level_scenario != '' or sea_level_time != '':
             arcpy.AddError('Please select variables only corresponding to flood plane scenario')
-            print('Please select only one extreme weather')
     elif weather_type_input == 'sea level rise':
         if model != '' or scenario != '' or time_fire != '' or flood_scenario != '':
             arcpy.AddError('3 Please select variable from one extreme weather type')
-            print('Please select variables only corresponding to sea level rise scenario')
 
     #if statement to select the extreme weather type
     if weather_type_input == 'fire probability':
@@ -425,7 +430,8 @@ def user_input(weather_type_input, infastructure_type_input):
         #fire_input(model, scenario, time_fire)
         #call fire_input function to create file and assign name of file to in_file_name for intersection
         in_file_name = fire_input(model, scenario, time_fire)
-        
+        print(in_file_name)
+
     elif weather_type_input == 'flood plane':
         #get flood scenario (100 year, 200 year, 500 year)
         #flood_scenario = '100 year' #other options: 200 year, 500 year
@@ -448,7 +454,7 @@ def user_input(weather_type_input, infastructure_type_input):
         #intersecting features
         inFeatures = [str(area__feature), powerplants_url]
         #output file name
-        intersectOutput = 'powerplants_intersection'
+        intersectOutput = f'powerplants_{Path(area__feature).stem}_intersection'
         #perform intersection, write to scratch folder
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
@@ -460,9 +466,9 @@ def user_input(weather_type_input, infastructure_type_input):
         #intersecting features
         inFeatures = [str(area__feature), transmission_url]
         #output file name
-        intersectOutput = 'transmission_intersection'
+        intersectOutput = f'transmission_{Path(area__feature).stem}_intersection'
         #perform intersection, write to scratch folder
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'line')
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'LINE')
 
     elif infastructure_type_input == 'solar footprints':
         #read in data from url
@@ -472,12 +478,19 @@ def user_input(weather_type_input, infastructure_type_input):
         #intersecting features
         inFeatures = [str(area__feature), solar_footprints_url]
         #output file name
-        intersectOutput = 'solar_footprints_intersection'
+        intersectOutput = f'solar_footprints{Path(area__feature).stem}_intersection'
         #perform intersection, write to scratch folder
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
 
-#%% testing!
+
+
+
+
+#%%
+
+
+
 
 #user_input('fire probability', 'solar footprints')
 
@@ -525,8 +538,8 @@ def zip_shapefile(shapefile_path, output_zip):
     print(f"Shapefile successfully zipped into {output_zip}")
 
 # Example usage
-zip_shapefile(str(scratch_folder/'solar_footprints_intersection.shp'), str(scratch_folder/'solar_footprints_intersection.zip'))
-
+#zip_shapefile(str(scratch_folder/'solar_footprints_intersection.shp'), str(scratch_folder/'solar_footprints_intersection.zip'))
+'''
 
 # %%
 data = 'solar_footprints_intersection.zip'
@@ -539,3 +552,4 @@ published_service = shpfile.publish()
 # %%
 display(published_service)
 # %%
+'''
