@@ -21,6 +21,8 @@ from pathlib import Path
 import arcpy
 from arcpy.sa import *
 
+#import os
+import os
 
 #Reveal the current working directory
 root_folder = Path.cwd().parent
@@ -468,3 +470,57 @@ def user_input(weather_type_input, infastructure_type_input):
 #Call with inputs from arcpro to create files
 #output is files in scratch folder
 user_input(weather_type_input, infastructure_type_input)
+
+
+#%%
+import os
+
+data_dir = scratch_folder
+file_list = os.listdir(data_dir)
+
+
+
+
+# %%
+import os
+import zipfile
+
+def zip_shapefile(shapefile_path, output_zip):
+    """
+    Zip a shapefile's component files.
+    
+    Parameters:
+    shapefile_path (str): Path to the shapefile (e.g., '/path/to/shapefile.shp').
+    output_zip (str): Path for the output zip file (e.g., '/path/to/output.zip').
+    """
+    # Get the base name of the shapefile (without extension)
+    shapefile_base = os.path.splitext(shapefile_path)[0]
+    
+    # List of possible extensions for shapefile components
+    shapefile_extensions = ['.shp', '.shx', '.dbf', '.prj', '.cpg']
+    
+    # Open a zip file for writing
+    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
+        for ext in shapefile_extensions:
+            file_path = shapefile_base + ext
+            if os.path.exists(file_path):
+                zipf.write(file_path, arcname=os.path.basename(file_path))
+                print(f"Added {file_path} to {output_zip}")
+    
+    print(f"Shapefile successfully zipped into {output_zip}")
+
+# Example usage
+zip_shapefile(str(scratch_folder/'solar_footprints_intersection.shp'), str(scratch_folder/'solar_footprints_intersection.zip'))
+
+
+# %%
+data = 'solar_footprints_intersection.zip'
+shpfile = gis.content.add({}, data)
+
+# %%
+shpfile
+# %%
+published_service = shpfile.publish()
+# %%
+display(published_service)
+# %%
