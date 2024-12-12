@@ -138,9 +138,9 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
 
     arcpy.conversion.RasterToPolygon(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif', f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp')
 
-
+    return f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp'
 #%%
-fire_input('average simulation', 'medium emissions scenario', '1980-1989')
+#file_name = fire_input('average simulation', 'medium emissions scenario', '1980-1989')
 
 # %% Flood Script
 
@@ -191,12 +191,14 @@ def flood_input(flood_scenario):
         # Display any messages, warnings or errors
         print(arcpy.GetMessages())
 
-        arcpy.ListFields(floodrisk_100_year_DWR)
+        #arcpy.ListFields(floodrisk_100_year_DWR)
+        return combined100YearFlood
 
     elif flood_scenario == '200 year':
         floodrisk_200_year_USACE = 'https://gis.water.ca.gov/arcgis/rest/services/Boundaries/BAM/MapServer/11'
         arcpy.conversion.ExportFeatures(floodrisk_200_year_USACE, str(scratch_folder / 'floodrisk_200_year_USACE'))
-
+        return str(scratch_folder / 'floodrisk_200_year_USACE')
+    
     elif flood_scenario == '500 year':
         #Add code to merge or dissolve layers into one
         addSourceInfo = 'ADD_SOURCE_INFO'
@@ -228,10 +230,11 @@ def flood_input(flood_scenario):
         arcpy.management.Merge([floodrisk_500_year_FEMA, 
                                 floodrisk_500_year_Regional,
                                 floodrisk_500_year_USACE],combined500YearFlood, '', addSourceInfo)
-
+        return combined500YearFlood
+    
         # Display any messages, warnings or errors
         print(arcpy.GetMessages())#Repeat for 500 year flood plain data
-
+     
 #%%
 
 #%% Sea Level Rise Script
@@ -288,15 +291,26 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
     arcpy.MosaicToNewRaster_management(rastersToCombine, str(scratch_folder),\
                                     combinedRasterFilename, '', '', '', '1','LAST','FIRST')
     
+    return str(scratch_folder/combinedRasterFilename)
+
+
+
+#%%
+
+from arcgis import GIS
+gis = GIS('home')
+from arcgis.features.analysis import merge_layers
+#%%
+
 
 
 #%%
 
 weather_type_input = arcpy.GetParameterAsText(0)
+infastructure_type_input = arcpy.GetParameterAsText(7) #options: power plants, transmission, solar footprints
 #weather_type_input = 'fire probability'
 
-def user_input(weather_type_input):
-
+def user_input(weather_type_input, infastructure_type_input):
 
     if weather_type_input == 'fire probability':
         model = arcpy.GetParameterAsText(1)
@@ -305,19 +319,49 @@ def user_input(weather_type_input):
         #model = 'average simulation'
         #scenario = 'medium emissions scenario'
         #time_fire = '1980-1989'
-        fire_input(model, scenario, time_fire)
+        #fire_input(model, scenario, time_fire)
+        in_file_name = fire_input(model, scenario, time_fire)
         
     elif weather_type_input == 'flood plane':
         flood_scenario = arcpy.GetParameterAsText(4)
         #flood_scenario = '100 year' #other options: 200 year, 500 year
-        flood_input(flood_scenario)
+        in_file_name = flood_input(flood_scenario)
 
     elif weather_type_input == 'sea level rise':
         sea_level_scenario = arcpy.GetParameterAsText(5)
         sea_level_time = arcpy.GetParameterAsText(6)
         #sea_level_scenario = 'min' #other options: max, med
         #sea_level_time = '2080-2100'
-        sea_level_input(sea_level_time, sea_level_scenario)
+        in_file_name = sea_level_input(sea_level_time, sea_level_scenario)
+
+    if infastructure_type_input == 'power plants':
+        powerplants_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Power_Plant/FeatureServer/0'
+        area__feature = in_file_name
+        inFeatures = [str(area__feature), powerplants_url]
+        intersectOutput = 'powerplants_intersection'
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
+
+    elif infastructure_type_input == 'transmission':
+        transmission_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Transmission_Line/FeatureServer/2'
+        area__feature = in_file_name
+        inFeatures = [str(area__feature), transmission_url]
+        intersectOutput = 'transmission_intersection'
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
+
+    elif infastructure_type_input == 'solar footprints':
+        solar_footprints_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Solar_Footprints_V2/FeatureServer/0'
+        area__feature = in_file_name
+        inFeatures = [str(area__feature), solar_footprints_url]
+        intersectOutput = 'solar_footprints_intersection'
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
 #%%
-user_input(weather_type_input)
+user_input(weather_type_input, infastructure_type_input)
+
+
+#%% testing!
+
+#user_input('fire probability', 'solar footprints')
+
+
+# %%
