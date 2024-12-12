@@ -151,7 +151,9 @@ test = pd.read_json(response.text, typ='series')
 test['image']
 
 #%%
-outFileName = (scratch_folder/f'{slug}_{user_input_time}.tif')
+
+
+outFileName = str(scratch_folder/f'{slug}_{user_input_time}')
 outFileName
 
 #%%
@@ -168,7 +170,7 @@ arr_mask = np.where(arr > arr_mask_val, 1, np.nan) #replace 1 with 'arr' if you 
 
 driver = gdal.GetDriverByName("GTiff")
 
-outdata = driver.Create(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
+outdata = driver.Create(f'{outFileName}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
 outdata.SetGeoTransform(ds.GetGeoTransform()) #set same geotransform as input
 outdata.SetProjection(ds.GetProjection()) #set the same projection as input
 outdata.GetRasterBand(1).WriteArray(arr_mask)
@@ -186,12 +188,12 @@ from arcpy.sa import *
 
 # %%
 
-outInt = Int(arcpy.Raster(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif'))
-outInt.save(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif')
+outInt = Int(arcpy.Raster(f'{outFileName}_mask.tif'))
+outInt.save(f'{outFileName}_mask_int.tif')
 
 
 #%%
 
-arcpy.conversion.RasterToPolygon(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif', f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp')
+arcpy.conversion.RasterToPolygon(f'{outFileName}_mask_int.tif', f'{scratch_folder}/{slug}_{user_input_time}_mask.shp')
 
 # %%

@@ -59,6 +59,15 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
     slug_per = '10y' #fixed
     slug_time = 'bau' #fixed, other options: 01 through 12, changes month, just 'bau' contains yearly data
     
+
+    #warmer/drier simulation: HadGEM2
+    #average simulation: CanESM2
+    #cooler/wetter simulation: CNRM-CM5
+    #dissimlar simulation (unlike other three to produce maximal coverage): MIROC5
+
+    #RCP 4.5: medium emissions scenario, GHG peak by 2040 and decline
+    #RCP 8.5: high emissions scenario, GHG continue to rise throughout the 21st century
+
     slug = slug_var + '_' + slug_per + '_' + slug_model + '_' + slug_scenario + '_' + slug_time
     params = {'slug': [slug], 'pagesize': 100}
 
@@ -109,7 +118,7 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
     response = requests.get(time_selection)
     test = pd.read_json(response.text, typ='series')
 
-    outFileName = (scratch_folder/f'{slug}_{user_input_time}.tif')
+    outFileName = str(scratch_folder/f'{slug}_{user_input_time}')
 
     ds = gdal.Open(test['image'])
     print(f'ds is a {type(ds)} object')
@@ -123,7 +132,8 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
 
     driver = gdal.GetDriverByName("GTiff")
 
-    outdata = driver.Create(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
+    outdata = driver.Create(f'{outFileName}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
+    #outdata = driver.Create(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif', rows, cols, 1, gdal.GDT_Float32)
     outdata.SetGeoTransform(ds.GetGeoTransform()) #set same geotransform as input
     outdata.SetProjection(ds.GetProjection()) #set the same projection as input
     outdata.GetRasterBand(1).WriteArray(arr_mask)
@@ -133,14 +143,18 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
     band=None
     ds=None
 
-    outInt = Int(arcpy.Raster(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif'))
-    outInt.save(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif')
+    outInt = Int(arcpy.Raster(f'{outFileName}_mask.tif'))
+    outInt.save(f'{outFileName}_mask_int.tif')
 
-    arcpy.conversion.RasterToPolygon(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif', f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp')
+    #outInt = Int(arcpy.Raster(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.tif'))
+    #outInt.save(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif')
 
-    return f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp'
+    arcpy.conversion.RasterToPolygon(f'{outFileName}_mask_int.tif', f'{scratch_folder}/{slug}_{user_input_time}_mask.shp')
+    #arcpy.conversion.RasterToPolygon(f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask_int.tif', f'v:/Maynard_Mutua/Scratch/{slug}_{user_input_time}_mask.shp')
+
+    return f'{outFileName}_mask.shp'
 #%%
-#file_name = fire_input('average simulation', 'medium emissions scenario', '1980-1989')
+file_name = fire_input('average simulation', 'medium emissions scenario', '1980-1989')
 
 # %% Flood Script
 
@@ -346,7 +360,7 @@ def user_input(weather_type_input, infastructure_type_input):
         area__feature = in_file_name
         inFeatures = [str(area__feature), transmission_url]
         intersectOutput = 'transmission_intersection'
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'line')
 
     elif infastructure_type_input == 'solar footprints':
         solar_footprints_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Solar_Footprints_V2/FeatureServer/0'
