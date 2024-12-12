@@ -453,7 +453,7 @@ def user_input(weather_type_input, infastructure_type_input):
         #output file name
         intersectOutput = f'transmission_{Path(area__feature).stem}_intersection'
         #perform intersection, write to scratch folder
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'line')
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'LINE')
 
     elif infastructure_type_input == 'solar footprints':
         #read in data from url
