@@ -482,6 +482,17 @@ def user_input(weather_type_input, infastructure_type_input):
         #perform intersection, write to scratch folder
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
+    elif infastructure_type_input == 'ev chargers':
+        evChargers_compliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Stations_that_meet_NEVI_requirements_March2024/FeatureServer/0'
+        evChargers_noncompliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/DC_fast_charging_stations_do_not_meet_1mi_requirement_March2024/FeatureServer/0'
+        combinedEVChargers = str(scratch_folder / 'combinedEVChargers') 
+        arcpy.management.Merge([evChargers_compliant, 
+                            evChargers_noncompliant],combinedEVChargers, '', 'ADD_SOURCE_INFO')
+        
+        area__feature = in_file_name
+        inFeatures = [str(area__feature), combinedEVChargers]
+        intersectOutput = f'evChargers_{Path(area__feature).stem}_intersection'
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
 
 
@@ -490,6 +501,7 @@ def user_input(weather_type_input, infastructure_type_input):
 #%%
 
 
+#%%
 
 
 #user_input('fire probability', 'solar footprints')
