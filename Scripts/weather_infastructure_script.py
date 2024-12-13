@@ -30,6 +30,7 @@ data_folder = root_folder / 'Data'
 #create route to scratch folder
 scratch_folder = root_folder / 'Scratch'
 scripts_folder = root_folder / 'Scripts'
+processed_folder = root_folder / 'Processed'
 #print(root_folder)
 #print(scratch_folder)
 
@@ -189,7 +190,8 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
 #testing fire function outside of arcpro
 #file_name = fire_input('average simulation', 'medium emissions scenario', '1980-1989')
 
-# %% Flood Script
+# %% 
+#Flood Script
 
 #takes input of flood scenario to create a shapefile of the flood probability areas based on flood scenarios
 
@@ -299,8 +301,8 @@ def flood_input(flood_scenario):
 
 def sea_level_input(user_input_flood_time, user_input_flood_scenario):
     #testing variables
-    #user_input_flood_time = '2080-2100' #other options: 2020-2040
-    #user_input_flood_scenario = 'min' #other options: max, med
+    user_input_flood_time = '2080-2100' #other options: 2020-2040
+    user_input_flood_scenario = 'min' #other options: max, med
 
 
     r = requests.get('http://api.cal-adapt.org/api/')
@@ -323,7 +325,7 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
 
     #create list of items from response
     item_list = []
-    for i in json['results']:
+    for i in data['results']:
         item_list.append(i)
     print(item_list)
 
@@ -430,7 +432,6 @@ def user_input(weather_type_input, infastructure_type_input):
         #fire_input(model, scenario, time_fire)
         #call fire_input function to create file and assign name of file to in_file_name for intersection
         in_file_name = fire_input(model, scenario, time_fire)
-        print(in_file_name)
 
     elif weather_type_input == 'flood plane':
         #get flood scenario (100 year, 200 year, 500 year)
@@ -455,7 +456,11 @@ def user_input(weather_type_input, infastructure_type_input):
         inFeatures = [str(area__feature), powerplants_url]
         #output file name
         intersectOutput = f'powerplants_{Path(area__feature).stem}_intersection'
-        #perform intersection, write to scratch folder
+
+        arcpy.env.workspace = str(processed_folder)
+        arcpy.env.overwriteOutput = True
+
+        #perform intersection, write to processed folder
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
     elif infastructure_type_input == 'transmission':
@@ -467,7 +472,11 @@ def user_input(weather_type_input, infastructure_type_input):
         inFeatures = [str(area__feature), transmission_url]
         #output file name
         intersectOutput = f'transmission_{Path(area__feature).stem}_intersection'
-        #perform intersection, write to scratch folder
+
+        #perform intersection, write to processed folder
+        arcpy.env.workspace = str(processed_folder)
+        arcpy.env.overwriteOutput = True
+
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'LINE')
 
     elif infastructure_type_input == 'solar footprints':
@@ -479,9 +488,28 @@ def user_input(weather_type_input, infastructure_type_input):
         inFeatures = [str(area__feature), solar_footprints_url]
         #output file name
         intersectOutput = f'solar_footprints{Path(area__feature).stem}_intersection'
-        #perform intersection, write to scratch folder
+
+        arcpy.env.workspace = str(processed_folder)
+        arcpy.env.overwriteOutput = True
+
+        #perform intersection, write to processed folder
         arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
+    elif infastructure_type_input == 'ev chargers':
+        evChargers_compliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Stations_that_meet_NEVI_requirements_March2024/FeatureServer/0'
+        evChargers_noncompliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/DC_fast_charging_stations_do_not_meet_1mi_requirement_March2024/FeatureServer/0'
+        combinedEVChargers = str(scratch_folder / 'combinedEVChargers') 
+        arcpy.management.Merge([evChargers_compliant, 
+                            evChargers_noncompliant],combinedEVChargers, '', 'ADD_SOURCE_INFO')
+
+        area__feature = in_file_name
+        inFeatures = [str(area__feature), combinedEVChargers]
+        intersectOutput = f'evChargers_{Path(area__feature).stem}_intersection'
+
+        arcpy.env.workspace = str(processed_folder)
+        arcpy.env.overwriteOutput = True
+
+        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
 
 
 
@@ -490,6 +518,7 @@ def user_input(weather_type_input, infastructure_type_input):
 #%%
 
 
+#%%
 
 
 #user_input('fire probability', 'solar footprints')
@@ -501,55 +530,4 @@ user_input(weather_type_input, infastructure_type_input)
 
 
 #%%
-import os
 
-data_dir = scratch_folder
-file_list = os.listdir(data_dir)
-
-
-
-
-# %%
-import os
-import zipfile
-
-def zip_shapefile(shapefile_path, output_zip):
-    """
-    Zip a shapefile's component files.
-    
-    Parameters:
-    shapefile_path (str): Path to the shapefile (e.g., '/path/to/shapefile.shp').
-    output_zip (str): Path for the output zip file (e.g., '/path/to/output.zip').
-    """
-    # Get the base name of the shapefile (without extension)
-    shapefile_base = os.path.splitext(shapefile_path)[0]
-    
-    # List of possible extensions for shapefile components
-    shapefile_extensions = ['.shp', '.shx', '.dbf', '.prj', '.cpg']
-    
-    # Open a zip file for writing
-    with zipfile.ZipFile(output_zip, 'w', zipfile.ZIP_DEFLATED) as zipf:
-        for ext in shapefile_extensions:
-            file_path = shapefile_base + ext
-            if os.path.exists(file_path):
-                zipf.write(file_path, arcname=os.path.basename(file_path))
-                print(f"Added {file_path} to {output_zip}")
-    
-    print(f"Shapefile successfully zipped into {output_zip}")
-
-# Example usage
-#zip_shapefile(str(scratch_folder/'solar_footprints_intersection.shp'), str(scratch_folder/'solar_footprints_intersection.zip'))
-'''
-
-# %%
-data = 'solar_footprints_intersection.zip'
-shpfile = gis.content.add({}, data)
-
-# %%
-shpfile
-# %%
-published_service = shpfile.publish()
-# %%
-display(published_service)
-# %%
-'''
