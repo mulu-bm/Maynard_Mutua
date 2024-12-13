@@ -301,8 +301,8 @@ def flood_input(flood_scenario):
 
 def sea_level_input(user_input_flood_time, user_input_flood_scenario):
     #testing variables
-    #user_input_flood_time = '2080-2100' #other options: 2020-2040
-    #user_input_flood_scenario = 'min' #other options: max, med
+    user_input_flood_time = '2080-2100' #other options: 2020-2040
+    user_input_flood_scenario = 'min' #other options: max, med
 
 
     r = requests.get('http://api.cal-adapt.org/api/')
@@ -325,7 +325,7 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
 
     #create list of items from response
     item_list = []
-    for i in json['results']:
+    for i in data['results']:
         item_list.append(i)
     print(item_list)
 
