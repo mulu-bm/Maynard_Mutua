@@ -327,9 +327,9 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
         item_list.append(i)
     print(item_list)
 
-    #create list of rasters to combine
+    #create list of polygons to combine
     polygonsToCombine = []
-    #for loop to create tif files from rasters for each item in the list
+    #for loop to create polygons from rasters for each item in the list
     for item in item_list:
         dataset = gdal.Open(item['image'], gdal.GA_ReadOnly)
         print(dataset.RasterCount)
