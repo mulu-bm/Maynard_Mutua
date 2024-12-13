@@ -1,4 +1,5 @@
 #%%
+
 #Importing necessary libraries
 import pandas as pd
 import numpy as np
@@ -23,6 +24,11 @@ from arcpy.sa import *
 
 #import os
 import os
+
+#Import the GIS function from the arcgis library
+from arcgis import GIS
+gis = GIS('home')
+from arcgis.features.analysis import merge_layers
 
 #Reveal the current working directory
 root_folder = Path.cwd().parent
@@ -186,11 +192,9 @@ def fire_input(user_input_model, user_input_scenario, user_input_time):
 
     #return output file name so it can be selected in intersection analysis
     return f'{outFileName}_mask.shp'
-#%%
-#testing fire function outside of arcpro
-#file_name = fire_input('average simulation', 'medium emissions scenario', '1980-1989')
 
-# %% 
+#%%
+
 #Flood Script
 
 #takes input of flood scenario to create a shapefile of the flood probability areas based on flood scenarios
@@ -292,10 +296,9 @@ def flood_input(flood_scenario):
     
         # Display any messages, warnings or errors
         print(arcpy.GetMessages())#Repeat for 500 year flood plain data
-     
-#%%
 
 #%% Sea Level Rise Script
+
 
 #takes input of sea level rise scenario and time frame to create a shapefile of the sea level rise areas based on sea level rise scenarios
 
@@ -375,24 +378,21 @@ def sea_level_input(user_input_flood_time, user_input_flood_scenario):
     print(arcpy.GetMessages())
 
 
-
 #%%
 
-from arcgis import GIS
-gis = GIS('home')
-from arcgis.features.analysis import merge_layers
-
-#%%
-
-#get user input from arcpro on extreme weather type and infrastructure type
 weather_type_input = arcpy.GetParameterAsText(0)
-infastructure_type_input = arcpy.GetParameterAsText(7) #options: power plants, transmission, solar footprints
 #weather_type_input = 'fire probability'
 
-#function to take user input of weather type and infastructure type to create files
-#this was done as a function so data and operations were only called when needed
+def road_access_analysis(weather_type_input):
 
-def user_input(weather_type_input, infastructure_type_input):
+
+    """model = 'average simulation'
+    scenario = 'medium emissions scenario'
+    time_fire = '1980-1989'
+    flood_scenario = '100 year'
+    sea_level_scenario = 'min'
+    sea_level_time = '2080-2100'
+    """
     
     model = arcpy.GetParameterAsText(1)
     scenario = arcpy.GetParameterAsText(2)
@@ -401,14 +401,7 @@ def user_input(weather_type_input, infastructure_type_input):
     sea_level_scenario = arcpy.GetParameterAsText(5)
     sea_level_time = arcpy.GetParameterAsText(6)
     
-    '''
-    flood_scenario = '200 year'
-    model = 'average simulation'
-    scenario = 'medium emissions scenario'
-    time_fire = '1980-1989'
-    sea_level_scenario = 'min'
-    sea_level_time = '2080-2100'
-    '''
+    
     #Add error messages to guide user on selecting only variables that correspond to the extreme weather type
     if weather_type_input == 'fire probability':
         if flood_scenario != '' or sea_level_scenario != '' or sea_level_time != '':
@@ -419,6 +412,7 @@ def user_input(weather_type_input, infastructure_type_input):
     elif weather_type_input == 'sea level rise':
         if model != '' or scenario != '' or time_fire != '' or flood_scenario != '':
             arcpy.AddError('3 Please select variable from one extreme weather type')
+
 
     #if statement to select the extreme weather type
     if weather_type_input == 'fire probability':
@@ -446,88 +440,78 @@ def user_input(weather_type_input, infastructure_type_input):
         #call sea_level_input function to create file and assign name of file to in_file_name for intersection
         in_file_name = sea_level_input(sea_level_time, sea_level_scenario)
 
-    #if statement to select the infastructure type to be intersected with
-    if infastructure_type_input == 'power plants':
-        #read in data from url
-        powerplants_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Power_Plant/FeatureServer/0'
-        #feature to be intersected is from return statement from above funtions
-        area__feature = in_file_name
-        #intersecting features
-        inFeatures = [str(area__feature), powerplants_url]
-        #output file name
-        intersectOutput = f'powerplants_{Path(area__feature).stem}_intersection'
+    area__feature = in_file_name
 
-        arcpy.env.workspace = str(processed_folder)
-        arcpy.env.overwriteOutput = True
+    #Code to import electrical infrastructure
+    transmission_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Transmission_Line/FeatureServer/2'
+    transmission_layer = FeatureLayer(transmission_url)
+    #transmission_sdf = GeoAccessor.from_layer(transmission_layer)
+    arcpy.conversion.ExportFeatures(transmission_url, str(scratch_folder / 'transmissionlines'))
 
-        #perform intersection, write to processed folder
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
+    #Code to import boundary and roads data
+    primary_roads_url = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer/2'
+    primary_roads_layer = FeatureLayer(primary_roads_url)
+    arcpy.conversion.ExportFeatures(primary_roads_url, str(scratch_folder / 'primaryroads'))
 
-    elif infastructure_type_input == 'transmission':
-        #read in data from url
-        transmission_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Transmission_Line/FeatureServer/2'
-        #feature to be intersected is from return statement from above funtions
-        area__feature = in_file_name
-        #intersecting features
-        inFeatures = [str(area__feature), transmission_url]
-        #output file name
-        intersectOutput = f'transmission_{Path(area__feature).stem}_intersection'
+    secondary_roads_url = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer/3'
+    secondary_roads_layer = FeatureLayer(secondary_roads_url)
+    arcpy.conversion.ExportFeatures(secondary_roads_url, str(scratch_folder / 'secondaryroads'))
 
-        #perform intersection, write to processed folder
-        arcpy.env.workspace = str(processed_folder)
-        arcpy.env.overwriteOutput = True
+    #local_roads_url = 'https://tigerweb.geo.census.gov/arcgis/rest/services/TIGERweb/Transportation/MapServer/8'
+    #local_roads_layer = FeatureLayer(local_roads_url)
+    #arcpy.conversion.ExportFeatures(local_roads_url, str(scratch_folder / 'localroads'))
 
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'LINE')
+    # Use Merge tool to move roads into single dataset
+    combinedRoads = str(scratch_folder / 'combinedRoads') 
+    arcpy.management.Merge([str(scratch_folder / 'primaryroads'),
+                            str(scratch_folder / 'secondaryroads')],combinedRoads, '', 'ADD_SOURCE_INFO')
 
-    elif infastructure_type_input == 'solar footprints':
-        #read in data from url
-        solar_footprints_url = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Solar_Footprints_V2/FeatureServer/0'
-        #feature to be intersected is from return statement from above funtions
-        area__feature = in_file_name
-        #intersecting features
-        inFeatures = [str(area__feature), solar_footprints_url]
-        #output file name
-        intersectOutput = f'solar_footprints{Path(area__feature).stem}_intersection'
+    evChargers_compliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Stations_that_meet_NEVI_requirements_March2024/FeatureServer/0'
+    evChargers_noncompliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/DC_fast_charging_stations_do_not_meet_1mi_requirement_March2024/FeatureServer/0'
 
-        arcpy.env.workspace = str(processed_folder)
-        arcpy.env.overwriteOutput = True
-
-        #perform intersection, write to processed folder
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
-
-    elif infastructure_type_input == 'ev chargers':
-        evChargers_compliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/Stations_that_meet_NEVI_requirements_March2024/FeatureServer/0'
-        evChargers_noncompliant = 'https://services3.arcgis.com/bWPjFyq029ChCGur/arcgis/rest/services/DC_fast_charging_stations_do_not_meet_1mi_requirement_March2024/FeatureServer/0'
-        combinedEVChargers = str(scratch_folder / 'combinedEVChargers') 
-        arcpy.management.Merge([evChargers_compliant, 
+    # Use Merge tool to move features into single dataset
+    combinedEVChargers = str(scratch_folder / 'combinedEVChargers') 
+    arcpy.management.Merge([evChargers_compliant, 
                             evChargers_noncompliant],combinedEVChargers, '', 'ADD_SOURCE_INFO')
+        
+    # set local variables
+    in_features_Lines = str(scratch_folder / 'transmissionlines.shp')
+    in_features_Chargers = combinedEVChargers
+    near_features = combinedRoads
+    bufferedRoads = str(scratch_folder / 'BufferedRoads.shp')
 
-        area__feature = in_file_name
-        inFeatures = [str(area__feature), combinedEVChargers]
-        intersectOutput = f'evChargers_{Path(area__feature).stem}_intersection'
+        
+    #find the nearest road from each transmission line and EV charger
+    arcpy.analysis.Near(in_features_Lines, near_features, '', 'LOCATION', 'NO_ANGLE')
+    arcpy.analysis.Near(in_features_Chargers, near_features, '', 'LOCATION', 'NO_ANGLE')
 
-        arcpy.env.workspace = str(processed_folder)
-        arcpy.env.overwriteOutput = True
+    # find roads that intersect with selected weather event
+    intersectInFeatures = [in_file_name, combinedRoads]
+    intersectOutput = f'combinedRoadFloodRisk_{Path(area__feature).stem}'
+    arcpy.analysis.Intersect(intersectInFeatures, intersectOutput, '', '', 'LINE')    
 
-        arcpy.analysis.Intersect(inFeatures, intersectOutput, '', '', 'point')
+    # buffer roads that intersect with selected weather event
+    arcpy.Buffer_analysis(intersectOutput,bufferedRoads,'100 meters','','','ALL')
 
+    arcpy.env.workspace = str(processed_folder)
+    arcpy.env.overwriteOutput = True
 
+    #find intersection of buffered roads with transmission lines
+    intersectInFeaturesLines = [bufferedRoads, in_features_Lines]
+    intersectOutput = f'inaccessibleTransmissionLines_{Path(area__feature).stem}'
+    arcpy.analysis.Intersect(intersectInFeaturesLines, intersectOutput, '', '', 'LINE')
 
+    #find intersection of buffered roads with EV chargers
+    intersectInFeaturesLines = [bufferedRoads,  in_features_Chargers]
+    intersectOutput = f'inaccessibleEVChargers_{Path(area__feature).stem}'
+    arcpy.analysis.Intersect(intersectInFeaturesLines, intersectOutput, '', '', 'point') 
 
+    
 
 #%%
 
+road_access_analysis(weather_type_input)
 
-#%%
+# %%
 
-
-#user_input('fire probability', 'solar footprints')
-
-#%%
-#Call with inputs from arcpro to create files
-#output is files in scratch folder
-user_input(weather_type_input, infastructure_type_input)
-
-
-#%%
-
+# %%
